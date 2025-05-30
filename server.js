@@ -2,20 +2,19 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const admin = require('./firebaseConfig');
-const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+const { MercadoPagoConfig, Preference } = require('mercadopago');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ✅ Inicializar Mercado Pago com seu Access Token
+// Configurar Mercado Pago
 const client = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN || 'SEU_ACCESS_TOKEN'
+  accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-8788773395916849-053008-25d39705629784593abde20b15d8fb2f-568286023'  // Substitua aqui se for testar local
 });
 
 app.use(cors());
 app.use(bodyParser.json());
 
-// ✅ Criar pagamento
 app.post('/criar-pagamento', async (req, res) => {
   const { aposta, telefone, valor } = req.body;
 
@@ -24,69 +23,40 @@ app.post('/criar-pagamento', async (req, res) => {
   }
 
   try {
-    const preferenceClient = new Preference(client);
+    const preference = new Preference(client);
 
-    const preferenceData = {
-      items: [{
-        title: `Aposta: ${aposta}`,
-        quantity: 1,
-        unit_price: parseFloat(valor)
-      }],
-      external_reference: JSON.stringify({ aposta, telefone }),
-      back_urls: {
-        success: 'https://seusite.com/sucesso',
-        failure: 'https://seusite.com/erro',
-        pending: 'https://seusite.com/pendente'
-      },
-      auto_return: 'approved',
-      notification_url: 'https://aposta-backend.onrender.com/webhook'
-    };
+    const result = await preference.create({
+      body: {
+        items: [
+          {
+            title: `Aposta: ${aposta}`,
+            quantity: 1,
+            unit_price: parseFloat(valor)
+          }
+        ],
+        external_reference: JSON.stringify({ aposta, telefone }),
+        back_urls: {
+          success: 'https://seusite.com/sucesso',
+          failure: 'https://seusite.com/erro',
+          pending: 'https://seusite.com/pendente'
+        },
+        auto_return: 'approved',
+        notification_url: 'https://aposta-backend.onrender.com/webhook'
+      }
+    });
 
-    const response = await preferenceClient.create({ body: preferenceData });
-
-    if (!response || !response.body) {
+    if (!result || !result.body || !result.body.id) {
       throw new Error('Resposta inválida da API do Mercado Pago.');
     }
 
     res.json({
-      id: response.body.id,
-      init_point: response.body.init_point
+      id: result.body.id,
+      init_point: result.body.init_point
     });
 
   } catch (error) {
     console.error('❌ Erro ao criar pagamento:', error);
     res.status(500).json({ erro: 'Erro ao criar pagamento.', detalhes: error.message });
-  }
-});
-// ✅ Webhook (notificação de pagamento)
-app.post('/webhook', async (req, res) => {
-  const { id, topic } = req.query;
-
-  if (topic !== 'payment') return res.sendStatus(200);
-
-  try {
-    const paymentClient = new Payment(client);
-    const payment = await paymentClient.get({ id });
-
-    if (payment.body.status === 'approved') {
-      const { aposta, telefone } = JSON.parse(payment.body.external_reference);
-
-      const db = admin.firestore();
-      await db.collection('apostas').add({
-        aposta,
-        telefone,
-        paymentId: id,
-        status: 'pago',
-        timestamp: admin.firestore.FieldValue.serverTimestamp()
-      });
-
-      console.log('✅ Aposta salva com sucesso no Firestore');
-    }
-
-    res.sendStatus(200);
-  } catch (error) {
-    console.error('❌ Erro no webhook:', error);
-    res.sendStatus(500);
   }
 });
 
