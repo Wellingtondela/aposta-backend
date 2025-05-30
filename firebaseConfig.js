@@ -7,3 +7,7 @@ admin.initializeApp({
 });
 
 module.exports = admin;
+
+
+const mpAccessToken = process.env.MP_ACCESS_TOKEN;
+// use o token onde precisar
