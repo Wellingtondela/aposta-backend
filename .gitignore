@@ -1,0 +1,21 @@
+# Node modules (não subir para o GitHub)
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Diretórios de build (caso use)
+dist/
+build/
+
+# Configurações locais de ambiente
+.env
+
+# Arquivo de bloqueio (opcional, mas geralmente manter)
+# package-lock.json
+
+# Sistema operacional (Windows, Mac)
+.DS_Store
+Thumbs.db
