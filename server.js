@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const admin = require('./firebaseConfig');
-const { MercadoPago } = require('mercadopago');
+const mercadopago = require('mercadopago');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -10,8 +10,10 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Inicialize MercadoPago com Access Token (SDK v3)
-const mp = new MercadoPago(process.env.MP_ACCESS_TOKEN);
+// Inicialize o Mercado Pago corretamente (supondo v2.x)
+mercadopago.configure({
+  access_token: process.env.MP_ACCESS_TOKEN
+});
 
 app.get('/', (req, res) => {
   res.send('Servidor de apostas rodando!');
@@ -25,7 +27,7 @@ app.post('/gerar-pagamento', async (req, res) => {
   }
 
   try {
-    const payment = await mp.payment.create({
+    const payment = await mercadopago.payment.create({
       transaction_amount: 10,
       payment_method_id: 'pix',
       payer: {
@@ -58,7 +60,7 @@ app.post('/webhook', async (req, res) => {
   const paymentId = req.body.data?.id;
 
   try {
-    const payment = await mp.payment.get(paymentId);
+    const payment = await mercadopago.payment.get(paymentId);
 
     if (payment.body.status === 'approved') {
       const docRef = admin.firestore().collection('apostas_pendentes').doc(paymentId.toString());
