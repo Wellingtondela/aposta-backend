@@ -2,89 +2,77 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const admin = require('./firebaseConfig');
-const mercadopago = require('mercadopago');
+const { MercadoPagoConfig } = require('mercadopago');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ✅ Configura o Mercado Pago com Access Token da variável de ambiente
-mercadopago.configure({
-  access_token: process.env.MP_ACCESS_TOKEN
+// 🔐 Configure seu access token aqui (ou use variável de ambiente)
+const mercadopago = new MercadoPagoConfig({
+  accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-5389107324174320-081210-83ccf297a805164f8e0620976484fabe-568286023'
 });
 
 app.use(cors());
 app.use(bodyParser.json());
 
-// 🔄 Rota de teste
-app.get('/', (req, res) => {
-  res.send('Servidor de apostas rodando!');
-});
+// ✅ Criar pagamento
+app.post('/criar-pagamento', async (req, res) => {
+  const { aposta, telefone, valor } = req.body;
 
-// 🚀 Gera pagamento Pix e retorna QR Code + link "copie e cole"
-app.post('/gerar-pagamento', async (req, res) => {
-  const { aposta, telefone } = req.body;
-
-  if (!aposta || !telefone) {
-    return res.status(400).json({ erro: 'Aposta e telefone são obrigatórios.' });
+  if (!aposta || !telefone || !valor) {
+    return res.status(400).json({ erro: 'Aposta, telefone e valor são obrigatórios.' });
   }
 
   try {
-    const payment = await mercadopago.payment.create({
+    const response = await mercadopago.preference.create({
       body: {
-        transaction_amount: 10,
-        payment_method_id: "pix",
-        payer: {
-          email: "test_user_123@testuser.com"
-        }
+        items: [{
+          title: `Aposta: ${aposta}`,
+          unit_price: parseFloat(valor),
+          quantity: 1
+        }],
+        external_reference: JSON.stringify({ aposta, telefone }),
+        back_urls: {
+          success: 'https://seusite.com/sucesso',
+          failure: 'https://seusite.com/erro',
+          pending: 'https://seusite.com/pendente'
+        },
+        auto_return: 'approved',
+        notification_url: 'https://aposta-backend.onrender.com/webhook'
       }
     });
 
-    const pagamentoId = payment.body.id;
-
-    // 🔒 Salva a aposta como "pendente"
-    await admin.firestore().collection('apostas_pendentes').doc(pagamentoId.toString()).set({
-      aposta,
-      telefone,
-      status: 'pendente',
-      pagamentoId,
-      criado_em: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    // 🔁 Retorna o QR Code e o código de pagamento
     res.json({
-      qr_code_base64: payment.body.point_of_interaction.transaction_data.qr_code_base64,
-      qr_code: payment.body.point_of_interaction.transaction_data.qr_code,
-      pagamentoId
+      id: response.id,
+      init_point: response.init_point
     });
-  } catch (err) {
-    console.error('Erro ao gerar pagamento:', err);
-    res.status(500).json({ erro: 'Erro ao gerar pagamento.' });
+
+  } catch (error) {
+    console.error('Erro ao criar pagamento:', error);
+    res.status(500).json({ erro: 'Erro ao criar pagamento.' });
   }
 });
 
-// ✅ Webhook para receber notificações do Mercado Pago
+// ✅ Webhook (notificação de pagamento)
 app.post('/webhook', async (req, res) => {
-  const paymentId = req.body.data?.id;
+  const { id, topic } = req.query;
+
+  if (topic !== 'payment') return res.sendStatus(200);
 
   try {
-    const payment = await mercadopago.payment.get({ id: paymentId });
+    const payment = await mercadopago.payment.get({ id });
 
     if (payment.body.status === 'approved') {
-      const docRef = admin.firestore().collection('apostas_pendentes').doc(paymentId.toString());
-      const doc = await docRef.get();
+      const { aposta, telefone } = JSON.parse(payment.body.external_reference);
 
-      if (doc.exists) {
-        const { aposta, telefone } = doc.data();
-
-        await admin.firestore().collection('apostas').add({
-          aposta,
-          telefone,
-          timestamp: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        await docRef.delete(); // Remove das pendentes
-        console.log(`✅ Aposta salva após pagamento aprovado: ${telefone}`);
-      }
+      const db = admin.firestore();
+      await db.collection('apostas').add({
+        aposta,
+        telefone,
+        paymentId: id,
+        status: 'pago',
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      });
     }
 
     res.sendStatus(200);
@@ -94,7 +82,6 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// 🔊 Inicializa o servidor
 app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+  console.log(`✅ Servidor rodando na porta ${port}`);
 });
