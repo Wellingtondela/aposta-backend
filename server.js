@@ -11,7 +11,7 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// 🔐 Configure o Mercado Pago com seu Access Token
+// ✅ Configure o Mercado Pago com seu Access Token
 const mp = new mercadopago.MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN
 });
@@ -30,7 +30,6 @@ app.post('/gerar-pagamento', async (req, res) => {
   }
 
   try {
-
     const payment = await mp.payment.create({
       body: {
         transaction_amount: 10,
@@ -40,6 +39,7 @@ app.post('/gerar-pagamento', async (req, res) => {
         }
       }
     });
+
     const pagamentoId = payment.body.id;
 
     // Salva a aposta como pendente
@@ -67,7 +67,7 @@ app.post('/webhook', async (req, res) => {
   const paymentId = req.body.data?.id;
 
   try {
-    const payment = await mercadopago.payment.findById(paymentId);
+    const payment = await mp.payment.get({ id: paymentId });
 
     if (payment.body.status === 'approved') {
       const docRef = admin.firestore().collection('apostas_pendentes').doc(paymentId.toString());
