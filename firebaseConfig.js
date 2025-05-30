@@ -1,8 +1,13 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('./serviceAccountKey.json'); // arquivo JSON que você baixa do Firebase Console
+
+const serviceAccount = JSON.parse(process.env.SERVICE_ACCOUNT_KEY);
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
+  // outras configs
 });
 
-const db = admin.firestore();
+module.exports = admin;
+
+const mpAccessToken = process.env.MP_ACCESS_TOKEN;
+// use o token onde precisar
