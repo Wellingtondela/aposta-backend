@@ -12,8 +12,8 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // 🔐 Configure o Mercado Pago com seu Access Token
-mercadopago.configure({
-  access_token: process.env.MP_ACCESS_TOKEN || 'SEU_ACCESS_TOKEN_AQUI'
+const mp = new mercadopago.MercadoPagoConfig({
+  accessToken: process.env.MP_ACCESS_TOKEN
 });
 
 // 🔄 Rota de teste
@@ -30,16 +30,16 @@ app.post('/gerar-pagamento', async (req, res) => {
   }
 
   try {
-    const payment = await mercadopago.payment.create({
-      transaction_amount: 1.00, // valor fixo por enquanto
-      description: `Aposta do telefone ${telefone}`,
-      payment_method_id: 'pix',
-      payer: {
-        email: `${telefone}@wsaaposta.com`,
-        first_name: 'Apostador'
+
+    const payment = await mp.payment.create({
+      body: {
+        transaction_amount: 10,
+        payment_method_id: "pix",
+        payer: {
+          email: "test_user_123@testuser.com"
+        }
       }
     });
-
     const pagamentoId = payment.body.id;
 
     // Salva a aposta como pendente
