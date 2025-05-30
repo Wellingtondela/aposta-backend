@@ -47,10 +47,11 @@ app.post('/criar-pagamento', async (req, res) => {
       init_point: response.init_point
     });
 
-  } catch (error) {
-    console.error('Erro ao criar pagamento:', error);
-    res.status(500).json({ erro: 'Erro ao criar pagamento.' });
-  }
+ } catch (error) {
+  console.error('Erro ao criar pagamento:', error.response ? error.response : error);
+  res.status(500).json({ erro: 'Erro ao criar pagamento.', detalhes: error.message });
+}
+
 });
 
 // ✅ Webhook (notificação de pagamento)
