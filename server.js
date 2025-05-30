@@ -2,26 +2,21 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const admin = require('./firebaseConfig');
-const mercadopago = require('mercadopago');
+const { MercadoPago } = require('mercadopago');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Configurações
 app.use(cors());
 app.use(bodyParser.json());
 
-// ✅ Configure o Mercado Pago com seu Access Token
-const mp = new mercadopago.MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN
-});
+// Inicialize MercadoPago com Access Token (SDK v3)
+const mp = new MercadoPago(process.env.MP_ACCESS_TOKEN);
 
-// 🔄 Rota de teste
 app.get('/', (req, res) => {
   res.send('Servidor de apostas rodando!');
 });
 
-// 🚀 Gera pagamento e retorna QR Code + "copie e cole"
 app.post('/gerar-pagamento', async (req, res) => {
   const { aposta, telefone } = req.body;
 
@@ -31,18 +26,15 @@ app.post('/gerar-pagamento', async (req, res) => {
 
   try {
     const payment = await mp.payment.create({
-      body: {
-        transaction_amount: 10,
-        payment_method_id: "pix",
-        payer: {
-          email: "test_user_123@testuser.com"
-        }
+      transaction_amount: 10,
+      payment_method_id: 'pix',
+      payer: {
+        email: 'test_user_123@testuser.com'
       }
     });
 
     const pagamentoId = payment.body.id;
 
-    // Salva a aposta como pendente
     await admin.firestore().collection('apostas_pendentes').doc(pagamentoId.toString()).set({
       aposta,
       telefone,
@@ -62,12 +54,11 @@ app.post('/gerar-pagamento', async (req, res) => {
   }
 });
 
-// ✅ Webhook para verificar o pagamento (configure a URL no Mercado Pago)
 app.post('/webhook', async (req, res) => {
   const paymentId = req.body.data?.id;
 
   try {
-    const payment = await mp.payment.get({ id: paymentId });
+    const payment = await mp.payment.get(paymentId);
 
     if (payment.body.status === 'approved') {
       const docRef = admin.firestore().collection('apostas_pendentes').doc(paymentId.toString());
@@ -82,7 +73,8 @@ app.post('/webhook', async (req, res) => {
           timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        await docRef.delete(); // Remove da lista de pendentes
+        await docRef.delete();
+
         console.log(`Aposta do telefone ${telefone} salva com sucesso após pagamento aprovado.`);
       }
     }
