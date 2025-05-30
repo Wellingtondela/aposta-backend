@@ -25,23 +25,28 @@ app.post('/criar-pagamento', async (req, res) => {
 
   try {
     const preferenceClient = new Preference(client);
-    const response = await preferenceClient.create({
-      body: {
-        items: [{
-          title: `Aposta: ${aposta}`,
-          unit_price: parseFloat(valor),
-          quantity: 1
-        }],
-        external_reference: JSON.stringify({ aposta, telefone }),
-        back_urls: {
-          success: 'https://seusite.com/sucesso',
-          failure: 'https://seusite.com/erro',
-          pending: 'https://seusite.com/pendente'
-        },
-        auto_return: 'approved',
-        notification_url: 'https://aposta-backend.onrender.com/webhook'
-      }
-    });
+
+    const preferenceData = {
+      items: [{
+        title: `Aposta: ${aposta}`,
+        quantity: 1,
+        unit_price: parseFloat(valor)
+      }],
+      external_reference: JSON.stringify({ aposta, telefone }),
+      back_urls: {
+        success: 'https://seusite.com/sucesso',
+        failure: 'https://seusite.com/erro',
+        pending: 'https://seusite.com/pendente'
+      },
+      auto_return: 'approved',
+      notification_url: 'https://aposta-backend.onrender.com/webhook'
+    };
+
+    const response = await preferenceClient.create({ body: preferenceData });
+
+    if (!response || !response.body) {
+      throw new Error('Resposta inválida da API do Mercado Pago.');
+    }
 
     res.json({
       id: response.body.id,
@@ -53,7 +58,6 @@ app.post('/criar-pagamento', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao criar pagamento.', detalhes: error.message });
   }
 });
-
 // ✅ Webhook (notificação de pagamento)
 app.post('/webhook', async (req, res) => {
   const { id, topic } = req.query;
