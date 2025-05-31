@@ -116,10 +116,13 @@ app.post('/webhook', async (req, res) => {
 // ✅ Consultar status de pagamento
 app.get('/status-pagamento/:paymentId', async (req, res) => {
   const { paymentId } = req.params;
-
   try {
     const apostasRef = admin.firestore().collection('apostas');
-    const snapshot = await apostasRef.where('payment_id', '==', paymentId).get();
+
+    // CONVERSÃO para número
+    const snapshot = await apostasRef
+      .where('payment_id', '==', Number(paymentId))
+      .get();
 
     if (snapshot.empty) {
       return res.json({ status: 'pending' });
@@ -136,7 +139,7 @@ app.get('/status-pagamento/:paymentId', async (req, res) => {
     return res.json({ status });
 
   } catch (error) {
-    console.error('❌ Erro ao consultar status:', error);
+    console.error('Erro ao consultar status:', error);
     res.status(500).json({ error: 'Erro interno' });
   }
 });
