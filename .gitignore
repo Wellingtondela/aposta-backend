@@ -22,7 +22,7 @@ serviceAccountKey.json
 
 # Package lock (se quiser usar só yarn)
 package-lock.json
-
+# backups
 backup.js
 
 # VSCode
