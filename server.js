@@ -27,11 +27,14 @@ app.post('/criar-pagamento', async (req, res) => {
   }
 
   try {
+    const idempotencyKey = Date.now().toString(); // ou use um UUID para garantir unicidade
+
     const response = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${mpAccessToken}`
+        'Authorization': `Bearer ${mpAccessToken}`,
+        'X-Idempotency-Key': idempotencyKey
       },
       body: JSON.stringify({
         transaction_amount: parseFloat(valor),
@@ -45,6 +48,7 @@ app.post('/criar-pagamento', async (req, res) => {
         external_reference: JSON.stringify({ aposta, telefone })
       })
     });
+
 
     const data = await response.json();
 
