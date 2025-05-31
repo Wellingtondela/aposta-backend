@@ -7,7 +7,6 @@ const { MercadoPagoConfig } = require('mercadopago');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Ativa o fetch nativo (Node.js 18+ já tem suporte nativo)
 const fetch = global.fetch;
 
 const mpAccessToken = process.env.MP_ACCESS_TOKEN || 'APP_USR-8788773395916849-053008-25d39705629784593abde20b15d8fb2f-568286023';
@@ -18,7 +17,7 @@ const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
 app.use(cors());
 app.use(bodyParser.json());
 
-// Rota de criação do pagamento PIX
+// ✅ Criar pagamento PIX
 app.post('/criar-pagamento', async (req, res) => {
   const { aposta, telefone, valor } = req.body;
 
@@ -27,7 +26,7 @@ app.post('/criar-pagamento', async (req, res) => {
   }
 
   try {
-    const idempotencyKey = Date.now().toString(); // ou use um UUID para garantir unicidade
+    const idempotencyKey = Date.now().toString();
 
     const response = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
@@ -49,7 +48,6 @@ app.post('/criar-pagamento', async (req, res) => {
       })
     });
 
-
     const data = await response.json();
 
     if (!data.point_of_interaction) {
@@ -69,7 +67,7 @@ app.post('/criar-pagamento', async (req, res) => {
   }
 });
 
-// Webhook para registrar pagamento aprovado no Firestore
+// ✅ Webhook Mercado Pago
 app.post('/webhook', async (req, res) => {
   const data = req.body;
 
@@ -100,12 +98,11 @@ app.post('/webhook', async (req, res) => {
           telefone: info.telefone,
           valor: transaction_amount,
           status: payment.status,
-          payment_id: payment.id, // salvar o id do pagamento aqui
+          payment_id: payment.id,
           data_pagamento: new Date()
         });
 
-
-        console.log(`✅ Pagamento aprovado e salvo: ${info.telefone}`);
+        console.log(`✅ Pagamento aprovado e salvo no Firestore para: ${info.telefone}`);
       }
     }
 
@@ -116,8 +113,10 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// ✅ Consultar status de pagamento
 app.get('/status-pagamento/:paymentId', async (req, res) => {
   const { paymentId } = req.params;
+
   try {
     const apostasRef = admin.firestore().collection('apostas');
     const snapshot = await apostasRef.where('payment_id', '==', paymentId).get();
@@ -137,12 +136,12 @@ app.get('/status-pagamento/:paymentId', async (req, res) => {
     return res.json({ status });
 
   } catch (error) {
-    console.error('Erro ao consultar status:', error);
+    console.error('❌ Erro ao consultar status:', error);
     res.status(500).json({ error: 'Erro interno' });
   }
 });
 
-
+// ✅ Inicia o servidor
 app.listen(port, () => {
   console.log(`✅ Servidor rodando na porta ${port}`);
 });
