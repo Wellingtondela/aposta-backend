@@ -100,8 +100,10 @@ app.post('/webhook', async (req, res) => {
           telefone: info.telefone,
           valor: transaction_amount,
           status: payment.status,
+          payment_id: payment.id, // salvar o id do pagamento aqui
           data_pagamento: new Date()
         });
+
 
         console.log(`✅ Pagamento aprovado e salvo: ${info.telefone}`);
       }
@@ -113,6 +115,33 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+app.get('/status-pagamento/:paymentId', async (req, res) => {
+  const { paymentId } = req.params;
+  try {
+    const apostasRef = admin.firestore().collection('apostas');
+    const snapshot = await apostasRef.where('payment_id', '==', paymentId).get();
+
+    if (snapshot.empty) {
+      return res.json({ status: 'pending' });
+    }
+
+    let status = 'pending';
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.status === 'approved') {
+        status = 'approved';
+      }
+    });
+
+    return res.json({ status });
+
+  } catch (error) {
+    console.error('Erro ao consultar status:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`✅ Servidor rodando na porta ${port}`);
