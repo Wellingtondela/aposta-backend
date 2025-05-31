@@ -10,7 +10,7 @@ const port = process.env.PORT || 3000;
 // Ativa o fetch nativo (Node.js 18+ já tem suporte nativo)
 const fetch = global.fetch;
 
-const mpAccessToken = process.env.MP_ACCESS_TOKEN || 'APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+const mpAccessToken = process.env.MP_ACCESS_TOKEN || 'APP_USR-8788773395916849-053008-25d39705629784593abde20b15d8fb2f-568286023';
 
 // Inicializa o Mercado Pago
 const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
