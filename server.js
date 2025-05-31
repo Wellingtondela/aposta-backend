@@ -2,19 +2,23 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const admin = require('./firebaseConfig');
-const { MercadoPagoConfig, Preference } = require('mercadopago');
+const { MercadoPagoConfig } = require('mercadopago');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Configurar Mercado Pago
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-8788773395916849-053008-25d39705629784593abde20b15d8fb2f-568286023'  // Substitua aqui se for testar local
-});
+// Ativa o fetch nativo (Node.js 18+ já tem suporte nativo)
+const fetch = global.fetch;
+
+const mpAccessToken = process.env.MP_ACCESS_TOKEN || 'APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+
+// Inicializa o Mercado Pago
+const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
 
 app.use(cors());
 app.use(bodyParser.json());
 
+// Rota de criação do pagamento PIX
 app.post('/criar-pagamento', async (req, res) => {
   const { aposta, telefone, valor } = req.body;
 
@@ -27,7 +31,7 @@ app.post('/criar-pagamento', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN || 'APP_USR-8788773395916849-053008-25d39705629784593abde20b15d8fb2f-568286023'}`
+        Authorization: `Bearer ${mpAccessToken}`
       },
       body: JSON.stringify({
         transaction_amount: parseFloat(valor),
@@ -45,6 +49,7 @@ app.post('/criar-pagamento', async (req, res) => {
     const data = await response.json();
 
     if (!data.point_of_interaction) {
+      console.error('❌ Erro no retorno do Mercado Pago:', data);
       throw new Error('Erro ao obter informações de pagamento.');
     }
 
@@ -60,16 +65,17 @@ app.post('/criar-pagamento', async (req, res) => {
   }
 });
 
+// Webhook para registrar pagamento aprovado no Firestore
 app.post('/webhook', async (req, res) => {
   const data = req.body;
 
   try {
-    if (data.type === 'payment' && data.data && data.data.id) {
+    if (data.type === 'payment' && data.data?.id) {
       const paymentId = data.data.id;
 
       const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: {
-          Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN || 'APP_USR-8788773395916849-053008-25d39705629784593abde20b15d8fb2f-568286023'}`
+          Authorization: `Bearer ${mpAccessToken}`
         }
       });
 
@@ -81,11 +87,11 @@ app.post('/webhook', async (req, res) => {
         let info = { aposta: '', telefone: '' };
         try {
           info = JSON.parse(external_reference);
-        } catch (e) {}
+        } catch (e) {
+          console.warn('⚠️ Erro ao converter external_reference:', e);
+        }
 
-        const docRef = admin.firestore().collection('apostas').doc();
-
-        await docRef.set({
+        await admin.firestore().collection('apostas').add({
           aposta: info.aposta,
           telefone: info.telefone,
           valor: transaction_amount,
@@ -93,12 +99,11 @@ app.post('/webhook', async (req, res) => {
           data_pagamento: new Date()
         });
 
-        console.log(`✅ Pagamento aprovado e aposta salva para ${info.telefone}`);
+        console.log(`✅ Pagamento aprovado e salvo: ${info.telefone}`);
       }
     }
 
-    res.sendStatus(200); // Mercado Pago espera 200 para confirmar o recebimento
-
+    res.sendStatus(200);
   } catch (error) {
     console.error('❌ Erro no webhook:', error);
     res.sendStatus(500);
