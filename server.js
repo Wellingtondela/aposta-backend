@@ -144,6 +144,37 @@ app.get('/status-pagamento/:paymentId', async (req, res) => {
   }
 });
 
+// Rota para consultar apostas pelo telefone
+app.get('/consultar-apostas/:telefone', async (req, res) => {
+  const telefone = req.params.telefone;
+
+  // Validação simples do telefone (11 dígitos)
+  if (!/^\d{11}$/.test(telefone)) {
+    return res.status(400).json({ error: 'Telefone inválido. Deve conter 11 dígitos numéricos.' });
+  }
+
+  try {
+    // Busca apostas onde o campo "telefone" seja igual ao telefone informado
+    const apostasRef = admin.firestore().collection('apostas');
+
+    const querySnapshot = await apostasRef.where('telefone', '==', telefone).get();
+
+    if (querySnapshot.empty) {
+      return res.status(404).json({ message: 'Nenhuma aposta encontrada para esse telefone.' });
+    }
+
+    const apostas = [];
+    querySnapshot.forEach(doc => {
+      apostas.push({ id: doc.id, ...doc.data() });
+    });
+
+    return res.json({ apostas });
+  } catch (error) {
+    console.error('Erro ao consultar apostas:', error);
+    return res.status(500).json({ error: 'Erro interno do servidor.' });
+  }
+});
+
 // ✅ Inicia o servidor
 app.listen(port, () => {
   console.log(`✅ Servidor rodando na porta ${port}`);
