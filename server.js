@@ -19,10 +19,10 @@ app.use(bodyParser.json());
 
 // ✅ Criar pagamento PIX
 app.post('/criar-pagamento', async (req, res) => {
-  const { aposta, telefone, valor, ChaviPix } = req.body;
+  const { aposta, telefone, valor } = req.body;
 
-  if (!aposta || !telefone || !valor || !ChaviPix) {
-    return res.status(400).json({ erro: 'Aposta, telefone, valor e ChaviPix são obrigatórios.' });
+  if (!aposta || !telefone || !valor) {
+    return res.status(400).json({ erro: 'Aposta, telefone e valor são obrigatórios.' });
   }
 
   try {
@@ -37,14 +37,14 @@ app.post('/criar-pagamento', async (req, res) => {
       },
       body: JSON.stringify({
         transaction_amount: parseFloat(valor),
-        description: `Aposta: ${aposta} | Chave Pix: ${ChaviPix}`,
+        description: `Aposta: ${aposta}`,
         payment_method_id: 'pix',
         payer: {
           email: `${telefone.replace(/\D/g, '')}@apostas.com`,
           first_name: 'Apostador',
           last_name: telefone
         },
-        external_reference: JSON.stringify({ aposta, telefone, ChaviPix })
+        external_reference: JSON.stringify({ aposta, telefone })
       })
     });
 
@@ -86,7 +86,7 @@ app.post('/webhook', async (req, res) => {
       if (payment.status === 'approved') {
         const { external_reference, transaction_amount } = payment;
 
-        let info = { aposta: '', telefone: '', ChaviPix: '' };
+        let info = { aposta: '', telefone: '' };
         try {
           info = JSON.parse(external_reference);
         } catch (e) {
@@ -96,7 +96,6 @@ app.post('/webhook', async (req, res) => {
         await admin.firestore().collection('apostas').add({
           aposta: info.aposta,
           telefone: info.telefone,
-          chaviPix: info.ChaviPix,
           valor: transaction_amount,
           status: payment.status,
           payment_id: payment.id,
