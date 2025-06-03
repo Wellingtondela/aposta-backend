@@ -28,7 +28,7 @@ app.get('/jogos-hoje', async (req, res) => {
   console.log('🔐 SPORTMONKS_TOKEN:', API_TOKEN);
   const hoje = new Date().toISOString().split('T')[0];
 
-  const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&include=localTeam;visitorTeam;league`;
+  const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&include=participants,league`;
 
   try {
     const response = await fetch(url);
@@ -39,21 +39,29 @@ app.get('/jogos-hoje', async (req, res) => {
       return res.status(500).json({ erro: 'Erro na resposta da API SportMonks' });
     }
 
-    const jogos = result.data.map(jogo => ({
-      id: jogo.id,
-      campeonato: jogo.league?.name || 'Desconhecido',
-      pais: jogo.league?.country?.name || 'Desconhecido',
-      timeCasa: jogo.localTeam?.name,
-      timeFora: jogo.visitorTeam?.name,
-      horario: jogo.time?.starting_at?.time || '00:00'
-    }));
+    const jogos = result.data.map(jogo => {
+      const participantes = jogo.participants || [];
+      const timeCasa = participantes.find(p => p.meta?.location === 'home')?.name || 'Desconhecido';
+      const timeFora = participantes.find(p => p.meta?.location === 'away')?.name || 'Desconhecido';
 
-    res.json(jogos);
+      return {
+        id: jogo.id,
+        campeonato: jogo.league?.name || 'Desconhecido',
+        pais: jogo.league?.country?.name || 'Desconhecido',
+        timeCasa,
+        timeFora,
+        horario: jogo.time?.starting_at?.time || '00:00'
+      };
+    });
+
+    return res.json({ jogos });
+
   } catch (error) {
     console.error('❌ Erro ao buscar jogos do dia:', error.message);
     res.status(500).json({ erro: 'Erro ao buscar jogos do dia' });
   }
 });
+
 
 // ✅ Criar pagamento PIX
 app.post('/criar-pagamento', async (req, res) => {
