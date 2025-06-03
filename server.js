@@ -64,9 +64,9 @@ app.get('/jogos-hoje', async (req, res) => {
         timeFora: visitorTeam?.name || 'Desconhecido',
         horario: jogo.starting_at?.timestamp
           ? new Date(jogo.starting_at.timestamp * 1000).toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })
+            hour: '2-digit',
+            minute: '2-digit'
+          })
           : '00:00'
       };
     });
@@ -83,18 +83,18 @@ app.get('/ligas-disponiveis', async (req, res) => {
   const API_TOKEN = process.env.SPORTMONKS_TOKEN;
 
   try {
-    const response = await fetch(`https://api.sportmonks.com/v3/football/leagues?api_token=${API_TOKEN}`);
+    const response = await fetch(`https://api.sportmonks.com/v3/football/leagues?api_token=${API_TOKEN}&include=country`);
     const data = await response.json();
 
     if (!data.data) {
       return res.status(500).json({ erro: 'Erro ao buscar ligas.' });
     }
-
     const ligas = data.data.map(league => ({
       id: league.id,
       nome: league.name,
-      pais: league.country?.name || 'Desconhecido'
+      pais: league.country?.name || league.country?.data?.name || 'Desconhecido'
     }));
+
 
     res.json({ ligas });
   } catch (error) {
