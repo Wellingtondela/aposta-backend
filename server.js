@@ -30,6 +30,7 @@ app.get('/jogos-hoje', async (req, res) => {
 
   const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&include=localTeam,visitorTeam,league`;
 
+
   try {
     const response = await fetch(url);
     const result = await response.json();
