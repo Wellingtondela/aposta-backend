@@ -17,89 +17,45 @@ const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
 app.use(cors());
 app.use(bodyParser.json());
 
+
+const API_KEY = '285647f54618d96ef2560aad07a29a48';
+const BASE_URL = 'https://v3.football.api-sports.io';
+
 // Rota raiz para teste básico
 app.get('/', (req, res) => {
   res.send('Backend está rodando! Use /jogos-hoje para ver os jogos do dia.');
 });
 
-// Rota para buscar jogos do dia via SportMonks
 app.get('/jogos-hoje', async (req, res) => {
-  const API_TOKEN = process.env.SPORTMONKS_TOKEN;
-  const hoje = new Date().toISOString().split('T')[0];
-
   try {
-    // 🔎 1. Buscar ligas permitidas no seu plano
-    const ligasResponse = await fetch(`https://api.sportmonks.com/v3/football/leagues?api_token=${API_TOKEN}`);
-    const ligasData = await ligasResponse.json();
+    const hoje = new Date().toISOString().split('T')[0];
 
-    if (!ligasData.data) {
-      console.log('❌ Não foi possível obter as ligas disponíveis:', ligasData);
-      return res.status(500).json({ erro: 'Erro ao consultar ligas disponíveis.' });
-    }
-
-    // 🧠 2. Extrair os IDs das ligas permitidas
-    const ligasPermitidas = ligasData.data.map(league => league.id);
-
-    // ✅ 3. Consultar os jogos do dia com as ligas liberadas
-    const fixturesURL = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&leagues=${ligasPermitidas.join(',')}&include=participants;league`;
-
-    const jogosResponse = await fetch(fixturesURL);
-    const jogosData = await jogosResponse.json();
-
-    if (!jogosData.data || jogosData.data.length === 0) {
-      console.log('⚠️ Nenhum jogo encontrado para hoje.');
-      return res.json({ jogos: [] }); // Resposta vazia, mas sem erro
-    }
-
-    // 🏟️ 4. Transformar dados para o formato desejado
-    const jogos = jogosData.data.map(jogo => {
-      const localTeam = jogo.participants?.find(p => p.meta?.location === 'home');
-      const visitorTeam = jogo.participants?.find(p => p.meta?.location === 'away');
-
-      return {
-        id: jogo.id,
-        campeonato: jogo.league?.name || 'Desconhecido',
-        pais: jogo.league?.country?.name || 'Desconhecido',
-        timeCasa: localTeam?.name || 'Desconhecido',
-        timeFora: visitorTeam?.name || 'Desconhecido',
-        horario: jogo.starting_at?.timestamp
-          ? new Date(jogo.starting_at.timestamp * 1000).toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit'
-          })
-          : '00:00'
-      };
+    const response = await fetch(`${BASE_URL}/fixtures?date=${hoje}`, {
+      headers: {
+        'x-apisports-key': API_KEY
+      }
     });
 
-    return res.json({ jogos });
+    if (!response.ok) {
+      const errBody = await response.text();
+      return res.status(response.status).json({ error: 'Erro na API Football', detalhe: errBody });
+    }
 
-  } catch (error) {
-    console.error('❌ Erro ao buscar jogos do dia:', error.message);
-    res.status(500).json({ erro: 'Erro ao buscar jogos do dia' });
-  }
-});
-
-app.get('/ligas-disponiveis', async (req, res) => {
-  const API_TOKEN = process.env.SPORTMONKS_TOKEN;
-
-  try {
-    const response = await fetch(`https://api.sportmonks.com/v3/football/leagues?api_token=${API_TOKEN}&include=country`);
     const data = await response.json();
 
-    if (!data.data) {
-      return res.status(500).json({ erro: 'Erro ao buscar ligas.' });
-    }
-    const ligas = data.data.map(league => ({
-      id: league.id,
-      nome: league.name,
-      pais: league.country?.name || league.country?.data?.name || 'Desconhecido'
+    const jogos = data.response.map(jogo => ({
+      id: jogo.fixture.id,
+      campeonato: jogo.league.name,
+      pais: jogo.league.country,
+      timeCasa: jogo.teams.home.name,
+      timeFora: jogo.teams.away.name,
+      horario: jogo.fixture.date
     }));
 
-
-    res.json({ ligas });
+    res.json({ jogos });
   } catch (error) {
-    console.error('Erro ao buscar ligas:', error.message);
-    res.status(500).json({ erro: 'Erro interno' });
+    console.error('Erro ao buscar jogos:', error);
+    res.status(500).json({ error: 'Erro interno ao buscar jogos' });
   }
 });
 
