@@ -29,7 +29,7 @@ app.get('/jogos-hoje', async (req, res) => {
   const leaguesArray = [271, 501, 513, 1659];
   const filters = `league_id:${leaguesArray.join(',')}`;
 
-  const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&filters=${encodeURIComponent(filters)}&include=localTeam,visitorTeam,league`;
+const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&leagues=${leaguesArray.join(',')}&include=localTeam,visitorTeam,league`;
 
   try {
     const response = await fetch(url);
