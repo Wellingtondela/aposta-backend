@@ -31,9 +31,7 @@ app.get('/jogos-hoje', async (req, res) => {
     const hoje = new Date().toISOString().split('T')[0];
 
     const response = await fetch(`${BASE_URL}/fixtures?date=${hoje}`, {
-      headers: {
-        'x-apisports-key': API_KEY
-      }
+      headers: { 'x-apisports-key': API_KEY }
     });
 
     if (!response.ok) {
@@ -43,18 +41,47 @@ app.get('/jogos-hoje', async (req, res) => {
 
     const data = await response.json();
 
-    const jogos = data.response.map(jogo => ({
-      id: jogo.fixture.id,
-      campeonato: jogo.league.name,
-      pais: jogo.league.country,
-      timeCasa: jogo.teams.home.name,
-      timeFora: jogo.teams.away.name,
-      horario: jogo.fixture.date
-    }));
+    const jogosComOdds = await Promise.all(
+      data.response.map(async jogo => {
+        let odds = [];
 
-    res.json({ jogos });
+        try {
+          const oddsRes = await fetch(`${BASE_URL}/odds?fixture=${jogo.fixture.id}`, {
+            headers: { 'x-apisports-key': API_KEY }
+          });
+
+          const oddsData = await oddsRes.json();
+
+          const mercadoPrincipal = oddsData.response?.[0]?.bookmakers?.[0]?.bets?.find(
+            b => b.name === 'Match Winner'
+          );
+
+          if (mercadoPrincipal && mercadoPrincipal.values) {
+            odds = mercadoPrincipal.values.map(v => ({
+              resultado: v.value, // Home / Draw / Away
+              odd: v.odd
+            }));
+          }
+        } catch (err) {
+          console.warn(`⚠️ Sem odds para fixture ${jogo.fixture.id}: ${err.message}`);
+        }
+
+        return {
+          id: jogo.fixture.id,
+          campeonato: jogo.league.name,
+          pais: jogo.league.country,
+          timeCasa: jogo.teams.home.name,
+          timeFora: jogo.teams.away.name,
+          horario: jogo.fixture.date,
+          odds
+        };
+      })
+    );
+
+    res.json({ jogos: jogosComOdds });
+
   } catch (error) {
-    console.error('Erro ao buscar jogos:', error);
+    console.error('❌ Erro ao buscar jogos com odds:', error);
     res.status(500).json({ error: 'Erro interno ao buscar jogos' });
   }
 });
