@@ -25,12 +25,11 @@ app.get('/', (req, res) => {
 // Rota para buscar jogos do dia via SportMonks
 app.get('/jogos-hoje', async (req, res) => {
   const API_TOKEN = process.env.SPORTMONKS_TOKEN;
-  console.log('🔐 SPORTMONKS_TOKEN:', API_TOKEN);
   const hoje = new Date().toISOString().split('T')[0];
   const leaguesArray = [271, 501, 513, 1659];
-  const filters = encodeURIComponent(JSON.stringify({ league_id: leaguesArray }));
+  const filters = `league_id:${leaguesArray.join(',')}`;
 
-  const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&filters=${filters}&include=localTeam,visitorTeam,league`;
+  const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&filters=${encodeURIComponent(filters)}&include=localTeam,visitorTeam,league`;
 
   try {
     const response = await fetch(url);
@@ -42,16 +41,12 @@ app.get('/jogos-hoje', async (req, res) => {
     }
 
     const jogos = result.data.map(jogo => {
-      const participantes = jogo.participants || [];
-      const timeCasa = participantes.find(p => p.meta?.location === 'home')?.name || 'Desconhecido';
-      const timeFora = participantes.find(p => p.meta?.location === 'away')?.name || 'Desconhecido';
-
       return {
         id: jogo.id,
-        campeonato: jogo.league?.name || 'Desconhecido',
-        pais: jogo.league?.country?.name || 'Desconhecido',
-        timeCasa,
-        timeFora,
+        campeonato: jogo.league?.data?.name || 'Desconhecido',
+        pais: jogo.league?.data?.country?.data?.name || 'Desconhecido',
+        timeCasa: jogo.localTeam?.data?.name || 'Desconhecido',
+        timeFora: jogo.visitorTeam?.data?.name || 'Desconhecido',
         horario: jogo.time?.starting_at?.time || '00:00'
       };
     });
