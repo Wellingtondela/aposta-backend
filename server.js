@@ -79,6 +79,30 @@ app.get('/jogos-hoje', async (req, res) => {
   }
 });
 
+app.get('/ligas-disponiveis', async (req, res) => {
+  const API_TOKEN = process.env.SPORTMONKS_TOKEN;
+
+  try {
+    const response = await fetch(`https://api.sportmonks.com/v3/football/leagues?api_token=${API_TOKEN}`);
+    const data = await response.json();
+
+    if (!data.data) {
+      return res.status(500).json({ erro: 'Erro ao buscar ligas.' });
+    }
+
+    const ligas = data.data.map(league => ({
+      id: league.id,
+      nome: league.name,
+      pais: league.country?.name || 'Desconhecido'
+    }));
+
+    res.json({ ligas });
+  } catch (error) {
+    console.error('Erro ao buscar ligas:', error.message);
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
 
 // ✅ Criar pagamento PIX
 app.post('/criar-pagamento', async (req, res) => {
