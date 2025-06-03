@@ -27,31 +27,51 @@ const BASE_URL = 'https://v3.football.api-sports.io';
 app.get('/', (req, res) => {
   res.send('Backend está rodando! Use /jogos-hoje para ver os jogos do dia.');
 });
-
 app.get('/jogos-hoje', async (req, res) => {
   try {
-    const hoje = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD');
+    const hoje = new Date().toISOString().split('T')[0];
 
+    // Primeiro: buscar os jogos do dia
     const response = await fetch(`${BASE_URL}/fixtures?date=${hoje}`, {
       headers: {
         'x-apisports-key': API_KEY
       }
     });
 
-    if (!response.ok) {
-      const errBody = await response.text();
-      return res.status(response.status).json({ error: 'Erro na API Football', detalhe: errBody });
-    }
-
     const data = await response.json();
 
-    const jogos = data.response.map(jogo => ({
-      id: jogo.fixture.id,
-      campeonato: jogo.league.name,
-      pais: jogo.league.country,
-      timeCasa: jogo.teams.home.name,
-      timeFora: jogo.teams.away.name,
-      horario: jogo.fixture.date
+    const jogos = await Promise.all(data.response.map(async (jogo) => {
+      const fixtureId = jogo.fixture.id;
+
+      // Tentar buscar as odds para o jogo
+      let odds = null;
+      try {
+        const oddsRes = await fetch(`${BASE_URL}/odds?fixture=${fixtureId}`, {
+          headers: { 'x-apisports-key': API_KEY }
+        });
+        const oddsData = await oddsRes.json();
+
+        // Vamos pegar odds básicas de vitória/empate/derrota da 1ª casa de apostas disponível
+        const bookmaker = oddsData.response?.[0]?.bookmakers?.[0];
+        if (bookmaker && bookmaker.bets?.[0]?.values) {
+          odds = bookmaker.bets[0].values.map(opt => ({
+            resultado: opt.value, // "Home", "Draw", "Away"
+            odd: opt.odd
+          }));
+        }
+      } catch (err) {
+        console.warn(`⚠️ Falha ao buscar odds para fixture ${fixtureId}`);
+      }
+
+      return {
+        id: fixtureId,
+        campeonato: jogo.league.name,
+        pais: jogo.league.country,
+        timeCasa: jogo.teams.home.name,
+        timeFora: jogo.teams.away.name,
+        horario: jogo.fixture.date,
+        odds
+      };
     }));
 
     res.json({ jogos });
