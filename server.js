@@ -26,22 +26,33 @@ app.get('/', (req, res) => {
 app.get('/jogos-hoje', async (req, res) => {
   const API_TOKEN = process.env.SPORTMONKS_TOKEN;
   const hoje = new Date().toISOString().split('T')[0];
-  const leaguesArray = [271, 501, 513, 1659];
-
-  // URL corrigida com includes no formato correto
-  const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&leagues=${leaguesArray.join(',')}&include=participants;league`;
 
   try {
-    const response = await fetch(url);
-    const result = await response.json();
+    // 🔎 1. Buscar ligas permitidas no seu plano
+    const ligasResponse = await fetch(`https://api.sportmonks.com/v3/football/leagues?api_token=${API_TOKEN}`);
+    const ligasData = await ligasResponse.json();
 
-    if (!result.data) {
-      console.log('❌ Resposta inválida da API:', result);
-      return res.status(500).json({ erro: 'Erro na resposta da API SportMonks' });
+    if (!ligasData.data) {
+      console.log('❌ Não foi possível obter as ligas disponíveis:', ligasData);
+      return res.status(500).json({ erro: 'Erro ao consultar ligas disponíveis.' });
     }
 
-    const jogos = result.data.map(jogo => {
-      // Encontrar os times nos participantes
+    // 🧠 2. Extrair os IDs das ligas permitidas
+    const ligasPermitidas = ligasData.data.map(league => league.id);
+
+    // ✅ 3. Consultar os jogos do dia com as ligas liberadas
+    const fixturesURL = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&leagues=${ligasPermitidas.join(',')}&include=participants;league`;
+
+    const jogosResponse = await fetch(fixturesURL);
+    const jogosData = await jogosResponse.json();
+
+    if (!jogosData.data || jogosData.data.length === 0) {
+      console.log('⚠️ Nenhum jogo encontrado para hoje.');
+      return res.json({ jogos: [] }); // Resposta vazia, mas sem erro
+    }
+
+    // 🏟️ 4. Transformar dados para o formato desejado
+    const jogos = jogosData.data.map(jogo => {
       const localTeam = jogo.participants?.find(p => p.meta?.location === 'home');
       const visitorTeam = jogo.participants?.find(p => p.meta?.location === 'away');
 
@@ -51,7 +62,12 @@ app.get('/jogos-hoje', async (req, res) => {
         pais: jogo.league?.country?.name || 'Desconhecido',
         timeCasa: localTeam?.name || 'Desconhecido',
         timeFora: visitorTeam?.name || 'Desconhecido',
-        horario: jogo.starting_at ? new Date(jogo.starting_at).toLocaleTimeString('pt-BR') : '00:00'
+        horario: jogo.starting_at?.timestamp
+          ? new Date(jogo.starting_at.timestamp * 1000).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          : '00:00'
       };
     });
 
