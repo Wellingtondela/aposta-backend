@@ -177,6 +177,7 @@ app.get('/consultar-apostas/:telefone', async (req, res) => {
 
 app.get('/jogos-hoje', async (req, res) => {
   const API_TOKEN = process.env.SPORTMONKS_TOKEN;
+  console.log('🔐 SPORTMONKS_TOKEN:', API_TOKEN);
   const hoje = new Date().toISOString().split('T')[0];
 
   const url = `https://api.sportmonks.com/v3/football/fixtures/date/${hoje}?api_token=${API_TOKEN}&include=localTeam,visitorTeam,league`;
