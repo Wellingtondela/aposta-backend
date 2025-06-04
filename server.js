@@ -23,6 +23,45 @@ app.use(bodyParser.json());
 const API_KEY = '285647f54618d96ef2560aad07a29a48';
 const BASE_URL = 'https://v3.football.api-sports.io';
 
+const INSTANCE_ID = "3E23952117D550BCB9CDAE39331CC17C";
+const TOKEN = "DB3333E95E0130643011DFBF";
+
+const ZAPI_URL = `https://api.z-api.io/instances/${INSTANCE_ID}/token/${TOKEN}/send-messages`;
+
+router.post("/enviar-whatsapp", async (req, res) => {
+  const { numero, paymentId } = req.body;
+
+  if (!numero) return res.status(400).json({ error: "Número de telefone é obrigatório" });
+
+  const numeroLimpo = numero.replace(/\D/g, "");
+  const mensagem = `✅ Pagamento aprovado! ID da aposta: ${paymentId}\nBoa sorte na rodada! 🍀⚽`;
+
+  try {
+    const resposta = await fetch(ZAPI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phone: `55${numeroLimpo}`,
+        message: mensagem
+      })
+    });
+
+    const data = await resposta.json();
+
+    if (data.result === "success") {
+      res.json({ success: true, message: "Mensagem enviada com sucesso" });
+    } else {
+      console.log("Erro Z-API:", data);
+      res.status(500).json({ success: false, error: "Falha ao enviar mensagem", data });
+    }
+  } catch (e) {
+    console.error("Erro ao enviar WhatsApp:", e);
+    res.status(500).json({ error: "Erro interno ao enviar WhatsApp" });
+  }
+});
+
+module.exports = router;
+
 // Rota raiz para teste básico
 app.get('/', (req, res) => {
   res.send('Backend está rodando! Use /jogos-hoje para ver os jogos do dia.');
