@@ -28,7 +28,8 @@ const TOKEN = "DB3333E95E0130643011DFBF";
 
 const ZAPI_URL = `https://api.z-api.io/instances/${INSTANCE_ID}/token/${TOKEN}/send-messages`;
 
-router.post("/enviar-whatsapp", async (req, res) => {
+app.post("/enviar-whatsapp", async (req, res) => {
+
   const { numero, paymentId } = req.body;
 
   if (!numero) return res.status(400).json({ error: "Número de telefone é obrigatório" });
@@ -60,7 +61,6 @@ router.post("/enviar-whatsapp", async (req, res) => {
   }
 });
 
-module.exports = router;
 
 // Rota raiz para teste básico
 app.get('/', (req, res) => {
