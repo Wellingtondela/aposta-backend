@@ -31,10 +31,10 @@ async function enviarMensagemWhatsApp(numero, mensagem) {
     throw new Error('Client-Token não configurado');
   }
 
-  const url = `https://api.z-api.io/instances/3E23952117D550BCB9CDAE39331CC17C/token/${clientToken}/send-text`;
+  const url = `https://api.z-api.io/instances/3E23952117D550BCB9CDAE39331CC17C/send-text`;
 
   const body = {
-    phoneNumber: numero,
+    phone: numero,
     message: mensagem,
   };
 
@@ -43,7 +43,7 @@ async function enviarMensagemWhatsApp(numero, mensagem) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Token': clientToken // 👈 ADICIONAR AQUI
+        'Client-Token': clientToken  // ✅ ENVIA o token no HEADER
       },
       body: JSON.stringify(body),
     });
