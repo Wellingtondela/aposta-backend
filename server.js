@@ -24,18 +24,21 @@ const API_KEY = '285647f54618d96ef2560aad07a29a48';
 const BASE_URL = 'https://v3.football.api-sports.io';
 
 
-async function enviarMensagemWhatsApp(numero, mensagem) {
+async function enviarMensagemWhatsApp(numero) {
   const clientToken = process.env.ZAPI_CLIENT_TOKEN;
 
   if (!clientToken) {
     throw new Error('Client-Token não configurado');
   }
 
+  // ✅ Formatar número para padrão internacional (ex: 5598991243426)
+  const numeroFormatado = '55' + numero.replace(/\D/g, '');
+
   const url = `https://api.z-api.io/instances/3E23952117D550BCB9CDAE39331CC17C/send-text`;
 
   const body = {
-    phone: numero,
-    message: mensagem,
+    phone: numeroFormatado,
+    message: "Olá, sua aposta foi confirmada!",
   };
 
   try {
@@ -43,7 +46,7 @@ async function enviarMensagemWhatsApp(numero, mensagem) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Token': clientToken  // ✅ ENVIA o token no HEADER
+        'Client-Token': clientToken  // ✅ header correto
       },
       body: JSON.stringify(body),
     });
@@ -62,6 +65,7 @@ async function enviarMensagemWhatsApp(numero, mensagem) {
     throw error;
   }
 }
+
 
 app.post('/enviar-whatsapp', async (req, res) => {
   const { numero, paymentId } = req.body;
