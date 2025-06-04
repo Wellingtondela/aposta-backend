@@ -31,19 +31,25 @@ async function enviarMensagemWhatsApp(numero) {
     throw new Error('Client-Token não configurado');
   }
 
-  // Formata o número para internacional, exemplo: (00)99124-3426 -> 5500991243426
-  const numeroFormatado = '55' + numero.replace(/\D/g, '');
+  // Formata o número para internacional, adiciona 55 se não existir
+  let numeroLimpo = numero.replace(/\D/g, '');
+  if (!numeroLimpo.startsWith('55')) {
+    numeroLimpo = '55' + numeroLimpo;
+  }
 
-  const url = `https://api.z-api.io/instances/${instanceId}/token/${token}/message/send-message-text`;
+  const url = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
 
   const body = {
-    phone: numeroFormatado,
+    phone: numeroLimpo,
     message: "Olá, sua aposta foi confirmada!",
   };
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Client-Token': token,
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(body),
   });
 
@@ -57,6 +63,7 @@ async function enviarMensagemWhatsApp(numero) {
   console.log('Mensagem enviada com sucesso:', data);
   return data;
 }
+
 
 
 app.post('/enviar-whatsapp', async (req, res) => {
