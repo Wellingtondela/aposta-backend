@@ -23,44 +23,46 @@ app.use(bodyParser.json());
 const API_KEY = '285647f54618d96ef2560aad07a29a48';
 const BASE_URL = 'https://v3.football.api-sports.io';
 
-const INSTANCE_ID = "3E23952117D550BCB9CDAE39331CC17C";
-const TOKEN = "DB3333E95E0130643011DFBF";
 
-const ZAPI_URL = `https://api.z-api.io/instances/${INSTANCE_ID}/token/${TOKEN}/send-messages`;
+async function enviarMensagemWhatsApp(numero, mensagem) {
+  const clientToken = process.env.ZAPI_CLIENT_TOKEN; // seu token do Z-API, configure na .env
 
-app.post("/enviar-whatsapp", async (req, res) => {
+  if (!clientToken) {
+    throw new Error('Client-Token não configurado');
+  }
 
-  const { numero, paymentId } = req.body;
+  const url = `https://api.z-api.io/instances/3E23952117D550BCB9CDAE39331CC17C/token/${clientToken}/send-text`; 
+  // Substitua YOUR_INSTANCE_ID pelo ID da sua instância Z-API
 
-  if (!numero) return res.status(400).json({ error: "Número de telefone é obrigatório" });
-
-  const numeroLimpo = numero.replace(/\D/g, "");
-  const mensagem = `✅ Pagamento aprovado! ID da aposta: ${paymentId}\nBoa sorte na rodada! 🍀⚽`;
+  const body = {
+    phoneNumber: numero,
+    message: mensagem,
+  };
 
   try {
-    const resposta = await fetch(ZAPI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone: `55${numeroLimpo}`,
-        message: mensagem
-      })
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Se a API exigir, pode precisar incluir o token no header também, confira docs da Z-API
+      },
+      body: JSON.stringify(body),
     });
 
-    const data = await resposta.json();
+    const data = await response.json();
 
-    if (data.result === "success") {
-      res.json({ success: true, message: "Mensagem enviada com sucesso" });
-    } else {
-      console.log("Erro Z-API:", data);
-      res.status(500).json({ success: false, error: "Falha ao enviar mensagem", data });
+    if (!response.ok) {
+      console.error('Erro ao enviar mensagem Z-API:', data);
+      throw new Error(data.error || 'Erro desconhecido ao enviar mensagem');
     }
-  } catch (e) {
-    console.error("Erro ao enviar WhatsApp:", e);
-    res.status(500).json({ error: "Erro interno ao enviar WhatsApp" });
-  }
-});
 
+    console.log('Mensagem enviada com sucesso:', data);
+    return data;
+  } catch (error) {
+    console.error('Erro na requisição para Z-API:', error.message);
+    throw error;
+  }
+}
 
 // Rota raiz para teste básico
 app.get('/', (req, res) => {
