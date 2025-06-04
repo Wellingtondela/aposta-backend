@@ -23,47 +23,39 @@ app.use(bodyParser.json());
 const API_KEY = '285647f54618d96ef2560aad07a29a48';
 const BASE_URL = 'https://v3.football.api-sports.io';
 
-
 async function enviarMensagemWhatsApp(numero) {
-  const clientToken = process.env.ZAPI_CLIENT_TOKEN;
+  const instanceId = '3E23952117D550BCB9CDAE39331CC17C'; // seu instanceId
+  const token = process.env.ZAPI_CLIENT_TOKEN; // seu token correto
 
-  if (!clientToken) {
+  if (!token) {
     throw new Error('Client-Token não configurado');
   }
 
-  // ✅ Formatar número para padrão internacional (ex: 5598991243426)
+  // Formata o número para internacional, exemplo: (00)99124-3426 -> 5500991243426
   const numeroFormatado = '55' + numero.replace(/\D/g, '');
 
-  const url = `https://api.z-api.io/instances/3E23952117D550BCB9CDAE39331CC17C/send-text`;
+  const url = `https://api.z-api.io/instances/${instanceId}/token/${token}/message/send-message-text`;
 
   const body = {
     phone: numeroFormatado,
     message: "Olá, sua aposta foi confirmada!",
   };
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Client-Token': clientToken  // ✅ header correto
-      },
-      body: JSON.stringify(body),
-    });
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
-    const data = await response.json();
+  const data = await response.json();
 
-    if (!response.ok) {
-      console.error('Erro ao enviar mensagem Z-API:', data);
-      throw new Error(data.error || 'Erro desconhecido ao enviar mensagem');
-    }
-
-    console.log('Mensagem enviada com sucesso:', data);
-    return data;
-  } catch (error) {
-    console.error('Erro na requisição para Z-API:', error.message);
-    throw error;
+  if (!response.ok) {
+    console.error('Erro ao enviar mensagem Z-API:', data);
+    throw new Error(data.error || 'Erro desconhecido ao enviar mensagem');
   }
+
+  console.log('Mensagem enviada com sucesso:', data);
+  return data;
 }
 
 
