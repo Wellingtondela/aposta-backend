@@ -63,6 +63,22 @@ async function enviarMensagemWhatsApp(numero, mensagem) {
     throw error;
   }
 }
+app.post('/enviar-whatsapp', async (req, res) => {
+  const { numero, paymentId } = req.body;
+
+  if (!numero || !paymentId) {
+    return res.status(400).json({ error: 'Número e paymentId são obrigatórios.' });
+  }
+
+  try {
+    const mensagem = `Seu pagamento ${paymentId} foi aprovado com sucesso. Obrigado pela aposta!`;
+    await enviarMensagemWhatsApp(numero, mensagem);
+    return res.json({ sucesso: true });
+  } catch (error) {
+    console.error('Erro ao enviar WhatsApp:', error.message);
+    return res.status(500).json({ error: 'Erro ao enviar WhatsApp.' });
+  }
+});
 
 // Rota raiz para teste básico
 app.get('/', (req, res) => {
