@@ -25,15 +25,13 @@ const BASE_URL = 'https://v3.football.api-sports.io';
 
 
 async function enviarMensagemWhatsApp(numero, mensagem) {
-  const clientToken = process.env.ZAPI_CLIENT_TOKEN; // seu token do Z-API, configure na .env
-  console.log('Token ZAPI_CLIENT_TOKEN:', process.env.ZAPI_CLIENT_TOKEN);
+  const clientToken = process.env.ZAPI_CLIENT_TOKEN;
 
   if (!clientToken) {
     throw new Error('Client-Token não configurado');
   }
 
   const url = `https://api.z-api.io/instances/3E23952117D550BCB9CDAE39331CC17C/token/${clientToken}/send-text`;
-  // Substitua YOUR_INSTANCE_ID pelo ID da sua instância Z-API
 
   const body = {
     phoneNumber: numero,
@@ -45,7 +43,7 @@ async function enviarMensagemWhatsApp(numero, mensagem) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Se a API exigir, pode precisar incluir o token no header também, confira docs da Z-API
+        'Client-Token': clientToken // 👈 ADICIONAR AQUI
       },
       body: JSON.stringify(body),
     });
@@ -64,6 +62,7 @@ async function enviarMensagemWhatsApp(numero, mensagem) {
     throw error;
   }
 }
+
 app.post('/enviar-whatsapp', async (req, res) => {
   const { numero, paymentId } = req.body;
 
