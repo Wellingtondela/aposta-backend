@@ -20,7 +20,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 
-const API_KEY = '285647f54618d96ef2560aad07a29a48';
+const API_KEY = 'live_09bb6629160038527d05e70d0759ed';
 const BASE_URL = 'https://v3.football.api-sports.io';
 
 async function enviarMensagemWhatsApp(numero) {
@@ -65,7 +65,6 @@ async function enviarMensagemWhatsApp(numero) {
 }
 
 
-
 app.post('/enviar-whatsapp', async (req, res) => {
   const { numero, paymentId } = req.body;
 
@@ -90,31 +89,30 @@ app.get('/', (req, res) => {
 
 app.get('/jogos-eliminatorias', async (req, res) => {
   try {
-    const response = await fetch(`${BASE_URL}/campeonatos/37/partidas`, {
+    const response = await fetch('https://api.api-futebol.com.br/v1/campeonatos/44/partidas', {
       headers: {
-        'Authorization': `Bearer ${API_KEY}`
+        Authorization: `Bearer ${API_KEY}`
       }
     });
 
     const data = await response.json();
-    console.log(JSON.stringify(data, null, 2));
 
-    // Validação de segurança
+    // Validação da estrutura da resposta
     if (!data || !data.partidas) {
-      console.log('Resposta inesperada da API:', data);
-      return res.status(500).json({ error: 'Resposta inválida da API de futebol.' });
+      return res.status(500).json({ error: 'Resposta inesperada da API.' });
     }
 
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = new Date().toISOString().split('T')[0]; // formato YYYY-MM-DD
+
+    // Filtra jogos de hoje
     const jogosHoje = data.partidas.filter(p => p.data_realizacao === hoje);
 
     res.json({ jogos: jogosHoje });
   } catch (error) {
     console.error('Erro ao buscar jogos:', error);
-    res.status(500).json({ error: 'Erro ao buscar os jogos das eliminatórias.' });
+    res.status(500).json({ error: 'Erro ao buscar jogos das eliminatórias.' });
   }
 });
-
 
 // ✅ Criar pagamento PIX
 app.post('/criar-pagamento', async (req, res) => {
