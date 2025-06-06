@@ -88,7 +88,7 @@ app.get('/', (req, res) => {
   res.send('Backend está rodando! Use /jogos-hoje para ver os jogos do dia.');
 });
 
-app.get('/jogos-hoje', async (req, res) => {
+app.get('/jogos-eliminatorias', async (req, res) => {
   try {
     const response = await fetch(`${BASE_URL}/campeonatos/37/partidas`, {
       headers: {
@@ -97,10 +97,16 @@ app.get('/jogos-hoje', async (req, res) => {
     });
 
     const data = await response.json();
+    console.log(JSON.stringify(data, null, 2));
 
-    // Filtrar apenas partidas do dia atual, se quiser
+    // Validação de segurança
+    if (!data || !data.partidas) {
+      console.log('Resposta inesperada da API:', data);
+      return res.status(500).json({ error: 'Resposta inválida da API de futebol.' });
+    }
+
     const hoje = new Date().toISOString().split('T')[0];
-    const jogosHoje = data.partidas.filter(partida => partida.data_realizacao === hoje);
+    const jogosHoje = data.partidas.filter(p => p.data_realizacao === hoje);
 
     res.json({ jogos: jogosHoje });
   } catch (error) {
@@ -108,6 +114,7 @@ app.get('/jogos-hoje', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar os jogos das eliminatórias.' });
   }
 });
+
 
 // ✅ Criar pagamento PIX
 app.post('/criar-pagamento', async (req, res) => {
