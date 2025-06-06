@@ -20,6 +20,9 @@ app.use(cors());
 app.use(bodyParser.json());
 
 
+const API_KEY = '285647f54618d96ef2560aad07a29a48';
+const BASE_URL = 'https://v3.football.api-sports.io';
+
 async function enviarMensagemWhatsApp(numero) {
   const instanceId = '3E23952117D550BCB9CDAE39331CC17C'; // seu instanceId
   const token = process.env.ZAPI_CLIENT_TOKEN; // seu token correto
@@ -85,59 +88,24 @@ app.get('/', (req, res) => {
   res.send('Backend está rodando! Use /jogos-hoje para ver os jogos do dia.');
 });
 
-const API_KEY = 'live_09bb6629160038527d05e70d0759ed';
-const BASE_URL = 'https://v3.football.api-sports.io';
-
 app.get('/jogos-hoje', async (req, res) => {
   try {
-    const hoje = new Date().toISOString().split('T')[0];
-
-    const response = await fetch(`${BASE_URL}/fixtures?date=${hoje}`, {
-      headers: { 'x-apisports-key': API_KEY }
+    const response = await fetch(`${BASE_URL}/campeonatos/37/partidas`, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`
+      }
     });
 
     const data = await response.json();
 
-    const jogos = await Promise.all(data.response.map(async (jogo) => {
-      const fixtureId = jogo.fixture.id;
+    // Filtrar apenas partidas do dia atual, se quiser
+    const hoje = new Date().toISOString().split('T')[0];
+    const jogosHoje = data.partidas.filter(partida => partida.data_realizacao === hoje);
 
-      let odds = [];
-      try {
-        const oddsRes = await fetch(`${BASE_URL}/odds?fixture=${fixtureId}`, {
-          headers: { 'x-apisports-key': API_KEY }
-        });
-        const oddsData = await oddsRes.json();
-
-        const bookmaker = oddsData.response?.[0]?.bookmakers?.[0];
-        if (bookmaker?.bets?.[0]?.values) {
-          odds = bookmaker.bets[0].values.map(opt => ({
-            resultado: {
-              Home: 'Casa',
-              Draw: 'Empate',
-              Away: 'Fora'
-            }[opt.value] || opt.value,
-            odd: opt.odd
-          }));
-        }
-      } catch (err) {
-        console.warn(`⚠️ Falha ao buscar odds para fixture ${fixtureId}:`, err.message);
-      }
-
-      return {
-        id: fixtureId,
-        campeonato: jogo.league.name,
-        pais: jogo.league.country,
-        timeCasa: jogo.teams.home.name,
-        timeFora: jogo.teams.away.name,
-        horario: new Date(jogo.fixture.date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-        odds
-      };
-    }));
-
-    res.json({ jogos });
+    res.json({ jogos: jogosHoje });
   } catch (error) {
-    console.error('Erro ao buscar jogos:', error.message);
-    res.status(500).json({ error: 'Erro interno ao buscar jogos' });
+    console.error('Erro ao buscar jogos:', error);
+    res.status(500).json({ error: 'Erro ao buscar os jogos das eliminatórias.' });
   }
 });
 
