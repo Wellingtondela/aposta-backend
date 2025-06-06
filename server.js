@@ -20,7 +20,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 
-const API_KEY = 'live_09bb6629160038527d05e70d0759ed';
+const API_KEY = '285647f54618d96ef2560aad07a29a48';
 const BASE_URL = 'https://v3.football.api-sports.io';
 
 async function enviarMensagemWhatsApp(numero) {
@@ -65,6 +65,7 @@ async function enviarMensagemWhatsApp(numero) {
 }
 
 
+
 app.post('/enviar-whatsapp', async (req, res) => {
   const { numero, paymentId } = req.body;
 
@@ -86,31 +87,57 @@ app.post('/enviar-whatsapp', async (req, res) => {
 app.get('/', (req, res) => {
   res.send('Backend está rodando! Use /jogos-hoje para ver os jogos do dia.');
 });
-
-app.get('/jogos-eliminatorias', async (req, res) => {
+app.get('/jogos-hoje', async (req, res) => {
   try {
-    const response = await fetch('https://api.api-futebol.com.br/v1/campeonatos/44/partidas', {
+    const hoje = new Date().toISOString().split('T')[0];
+
+    // Primeiro: buscar os jogos do dia
+    const response = await fetch(`${BASE_URL}/fixtures?date=${hoje}`, {
       headers: {
-        Authorization: `Bearer ${API_KEY}`
+        'x-apisports-key': API_KEY
       }
     });
 
     const data = await response.json();
 
-    // Validação da estrutura da resposta
-    if (!data || !data.partidas) {
-      return res.status(500).json({ error: 'Resposta inesperada da API.' });
-    }
+    const jogos = await Promise.all(data.response.map(async (jogo) => {
+      const fixtureId = jogo.fixture.id;
 
-    const hoje = new Date().toISOString().split('T')[0]; // formato YYYY-MM-DD
+      // Tentar buscar as odds para o jogo
+      let odds = null;
+      try {
+        const oddsRes = await fetch(`${BASE_URL}/odds?fixture=${fixtureId}`, {
+          headers: { 'x-apisports-key': API_KEY }
+        });
+        const oddsData = await oddsRes.json();
 
-    // Filtra jogos de hoje
-    const jogosHoje = data.partidas.filter(p => p.data_realizacao === hoje);
+        // Vamos pegar odds básicas de vitória/empate/derrota da 1ª casa de apostas disponível
+        const bookmaker = oddsData.response?.[0]?.bookmakers?.[0];
+        if (bookmaker && bookmaker.bets?.[0]?.values) {
+          odds = bookmaker.bets[0].values.map(opt => ({
+            resultado: opt.value, // "Home", "Draw", "Away"
+            odd: opt.odd
+          }));
+        }
+      } catch (err) {
+        console.warn(`⚠️ Falha ao buscar odds para fixture ${fixtureId}`);
+      }
 
-    res.json({ jogos: jogosHoje });
+      return {
+        id: fixtureId,
+        campeonato: jogo.league.name,
+        pais: jogo.league.country,
+        timeCasa: jogo.teams.home.name,
+        timeFora: jogo.teams.away.name,
+        horario: jogo.fixture.date,
+        odds
+      };
+    }));
+
+    res.json({ jogos });
   } catch (error) {
     console.error('Erro ao buscar jogos:', error);
-    res.status(500).json({ error: 'Erro ao buscar jogos das eliminatórias.' });
+    res.status(500).json({ error: 'Erro interno ao buscar jogos' });
   }
 });
 
