@@ -19,126 +19,39 @@ const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
 app.use(cors());
 app.use(bodyParser.json());
 
+app.post('/api/enviar-whatsapp', async (req, res) => {
+  const { telefone, mensagem } = req.body;
 
-const API_KEY = '285647f54618d96ef2560aad07a29a48';
-const BASE_URL = 'https://v3.football.api-sports.io';
-
-async function enviarMensagemWhatsApp(numero) {
-  const instanceId = '3E23952117D550BCB9CDAE39331CC17C'; // seu instanceId
-  const token = process.env.ZAPI_CLIENT_TOKEN; // seu token correto
-
-  if (!token) {
-    throw new Error('Client-Token não configurado');
-  }
-
-  // Formata o número para internacional, adiciona 55 se não existir
-  let numeroLimpo = numero.replace(/\D/g, '');
-  if (!numeroLimpo.startsWith('55')) {
-    numeroLimpo = '55' + numeroLimpo;
-  }
-
-  const url = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
-
-  const body = {
-    phone: numeroLimpo,
-    message: "Olá, sua aposta foi confirmada!",
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Client-Token': token,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    console.error('Erro ao enviar mensagem Z-API:', data);
-    throw new Error(data.error || 'Erro desconhecido ao enviar mensagem');
-  }
-
-  console.log('Mensagem enviada com sucesso:', data);
-  return data;
-}
-
-
-
-app.post('/enviar-whatsapp', async (req, res) => {
-  const { numero, paymentId } = req.body;
-
-  if (!numero || !paymentId) {
-    return res.status(400).json({ error: 'Número e paymentId são obrigatórios.' });
-  }
+  const url = 'https://api.z-api.io/instances/3E29C2597A1D301A33CE4A39F5505F78/token/4DCAC74817C5D21367293CA0/send-text';
+  const SEU_CLIENT_TOKEN = 'F090ddb41867c492182e527b79329c3c1S';
 
   try {
-    const mensagem = `Seu pagamento ${paymentId} foi aprovado com sucesso. Obrigado pela aposta!`;
-    await enviarMensagemWhatsApp(numero, mensagem);
-    return res.json({ sucesso: true });
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Client-Token': 'SEU_CLIENT_TOKEN'
+      },
+      body: JSON.stringify({
+        phone: telefone,
+        message: mensagem
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return res.status(400).json({ error: errorData });
+    }
+
+    res.json({ success: true });
   } catch (error) {
-    console.error('Erro ao enviar WhatsApp:', error.message);
-    return res.status(500).json({ error: 'Erro ao enviar WhatsApp.' });
+    res.status(500).json({ error: error.message });
   }
 });
 
 // Rota raiz para teste básico
 app.get('/', (req, res) => {
   res.send('Backend está rodando! Use /jogos-hoje para ver os jogos do dia.');
-});
-app.get('/jogos-hoje', async (req, res) => {
-  try {
-    const hoje = new Date().toISOString().split('T')[0];
-
-    // Primeiro: buscar os jogos do dia
-    const response = await fetch(`${BASE_URL}/fixtures?date=${hoje}`, {
-      headers: {
-        'x-apisports-key': API_KEY
-      }
-    });
-
-    const data = await response.json();
-
-    const jogos = await Promise.all(data.response.map(async (jogo) => {
-      const fixtureId = jogo.fixture.id;
-
-      // Tentar buscar as odds para o jogo
-      let odds = null;
-      try {
-        const oddsRes = await fetch(`${BASE_URL}/odds?fixture=${fixtureId}`, {
-          headers: { 'x-apisports-key': API_KEY }
-        });
-        const oddsData = await oddsRes.json();
-
-        // Vamos pegar odds básicas de vitória/empate/derrota da 1ª casa de apostas disponível
-        const bookmaker = oddsData.response?.[0]?.bookmakers?.[0];
-        if (bookmaker && bookmaker.bets?.[0]?.values) {
-          odds = bookmaker.bets[0].values.map(opt => ({
-            resultado: opt.value, // "Home", "Draw", "Away"
-            odd: opt.odd
-          }));
-        }
-      } catch (err) {
-        console.warn(`⚠️ Falha ao buscar odds para fixture ${fixtureId}`);
-      }
-
-      return {
-        id: fixtureId,
-        campeonato: jogo.league.name,
-        pais: jogo.league.country,
-        timeCasa: jogo.teams.home.name,
-        timeFora: jogo.teams.away.name,
-        horario: jogo.fixture.date,
-        odds
-      };
-    }));
-
-    res.json({ jogos });
-  } catch (error) {
-    console.error('Erro ao buscar jogos:', error);
-    res.status(500).json({ error: 'Erro interno ao buscar jogos' });
-  }
 });
 
 // ✅ Criar pagamento PIX
@@ -265,37 +178,6 @@ app.get('/status-pagamento/:paymentId', async (req, res) => {
   } catch (error) {
     console.error('Erro ao consultar status:', error);
     res.status(500).json({ error: 'Erro interno' });
-  }
-});
-
-// Rota para consultar apostas pelo telefone
-app.get('/consultar-apostas/:telefone', async (req, res) => {
-  const telefone = req.params.telefone;
-
-  // Validação simples do telefone (11 dígitos)
-  if (!/^\d{11}$/.test(telefone)) {
-    return res.status(400).json({ error: 'Telefone inválido. Deve conter 11 dígitos numéricos.' });
-  }
-
-  try {
-    // Busca apostas onde o campo "telefone" seja igual ao telefone informado
-    const apostasRef = admin.firestore().collection('apostas');
-
-    const querySnapshot = await apostasRef.where('telefone', '==', telefone).get();
-
-    if (querySnapshot.empty) {
-      return res.status(404).json({ message: 'Nenhuma aposta encontrada para esse telefone.' });
-    }
-
-    const apostas = [];
-    querySnapshot.forEach(doc => {
-      apostas.push({ id: doc.id, ...doc.data() });
-    });
-
-    return res.json({ apostas });
-  } catch (error) {
-    console.error('Erro ao consultar apostas:', error);
-    return res.status(500).json({ error: 'Erro interno do servidor.' });
   }
 });
 
