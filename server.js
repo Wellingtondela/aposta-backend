@@ -149,7 +149,8 @@ app.post('/webhook', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               telefone: info.telefone,
-              mensagem: `✅ Pagamento aprovado para a aposta: ${info.aposta}. Boa sorte!`
+             mensagem: `✅ Pagamento aprovado para a aposta: ${info.aposta}. Boa sorte!%0a%0a🎉 Sua sorte está lançada, e você já está participando!%0a%0a💰 Que tal aumentar suas chances e multiplicar seus ganhos? Faça mais apostas e aumente suas possibilidades de sair como vencedor!%0a%0a⚽ Estamos com novos jogos liberados, aproveite enquanto ainda há tempo.%0a%0aBoa sorte e boas apostas! 🍀`
+
             })
           });
 
