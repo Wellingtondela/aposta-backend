@@ -130,6 +130,7 @@ app.post('/webhook', async (req, res) => {
           console.warn('⚠️ Erro ao converter external_reference:', e);
         }
 
+        // Salva no Firestore
         await admin.firestore().collection('apostas').add({
           aposta: info.aposta,
           telefone: info.telefone,
@@ -140,6 +141,27 @@ app.post('/webhook', async (req, res) => {
         });
 
         console.log(`✅ Pagamento aprovado e salvo no Firestore para: ${info.telefone}`);
+
+        // Envia WhatsApp automático após aprovação
+        try {
+          const whatsappResponse = await fetch('https://aposta-backend.onrender.com/api/enviar-whatsapp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telefone: info.telefone,
+              mensagem: `✅ Pagamento aprovado para a aposta: ${info.aposta}. Boa sorte!`
+            })
+          });
+
+          if (whatsappResponse.ok) {
+            console.log(`📲 WhatsApp enviado para ${info.telefone}`);
+          } else {
+            const error = await whatsappResponse.text();
+            console.error('❌ Erro ao enviar WhatsApp:', error);
+          }
+        } catch (e) {
+          console.error('❌ Erro no envio do WhatsApp:', e);
+        }
       }
     }
 
@@ -149,6 +171,7 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 
 // ✅ Consultar status de pagamento
 app.get('/status-pagamento/:paymentId', async (req, res) => {
@@ -179,6 +202,7 @@ app.get('/status-pagamento/:paymentId', async (req, res) => {
     console.error('Erro ao consultar status:', error);
     res.status(500).json({ error: 'Erro interno' });
   }
+  
 });
 
 // ✅ Inicia o servidor
