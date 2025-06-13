@@ -30,7 +30,7 @@ app.post('/api/enviar-whatsapp', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Token': 'SEU_CLIENT_TOKEN'
+        'Client-Token': SEU_CLIENT_TOKEN
       },
       body: JSON.stringify({
         phone: telefone,
